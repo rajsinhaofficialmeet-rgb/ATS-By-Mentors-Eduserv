@@ -55,18 +55,14 @@ async function startServer() {
 
   app.post("/api/login", async (req, res) => {
     const { username, password } = req.body;
-    if ((username === process.env.DEV_RECRUITER_USERNAME && password === process.env.DEV_RECRUITER_PASSWORD) || 
-        (username === "Mariya" && password === "9442")) {
-        res.json({ 
-            user: { 
-                name: username, 
-                email: `${username}@recruiter.com`, 
-                isAdmin: true 
-            } 
-        });
-    } else {
-        res.status(401).json({ error: "Invalid credentials" });
-    }
+    // Allow any username and password
+    res.json({ 
+        user: { 
+            name: username || 'Guest', 
+            email: `${username || 'guest'}@recruiter.com`, 
+            isAdmin: true 
+        } 
+    });
   });
 
   // Vite middleware for development

@@ -14,14 +14,13 @@ import * as XLSX from "xlsx";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, WidthType } from "docx";
 import { saveAs } from "file-saver";
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth();
-const googleProvider = new GoogleAuthProvider();
 
 // IMPORTANT: Configure worker for pdfjs
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
@@ -200,34 +199,6 @@ export default function App() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    if (isLoggingIn) return;
-    setIsLoggingIn(true);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (result.user) {
-        setRecruiter({
-          name: result.user.displayName || 'Recruiter',
-          email: result.user.email || 'No Email',
-          isAdmin: false,
-          accessToken: credential?.accessToken || undefined
-        });
-        setIsAuthed(true);
-        fetchHistory();
-      }
-    } catch (e: any) {
-      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
-          console.error("Authentication Error:", e);
-          alert("Login failed: " + e.message + " (" + e.code + ")");
-      } else {
-          console.log("Authentication cancelled by user.");
-      }
-    } finally {
-        setIsLoggingIn(false);
-    }
-  };
-
   // Theme helper
   const isDark = theme === 'dark';
   const bg = isDark ? 'bg-slate-950' : 'bg-slate-50';
@@ -238,18 +209,6 @@ export default function App() {
   const inputBg = isDark ? 'bg-slate-950' : 'bg-white';
   const inputBorder = isDark ? 'border-slate-700' : 'border-slate-200';
   const inputFocus = isDark ? 'focus:ring-orange-500 focus:border-orange-500' : 'focus:ring-indigo-500 focus:border-indigo-300';
-
-  useEffect(() => {
-    const init = async () => {
-        try {
-            await signInAnonymously(auth);
-            setIsAuthed(true);
-        } catch (e) {
-            console.warn("Auth failed or unsupported, proceeding without auth. Firebase features (history) may not work.", e);
-        }
-    };
-    init();
-  }, []);
 
   const evalResults = (results as any)?.candidates ? (results as unknown as EvaluationResults) : null;
 
@@ -738,14 +697,8 @@ export default function App() {
                 </div>
             ) : (
                 <div className="flex gap-2">
-                    {showLoginSelection ? (
-                        <>
-                            <button onClick={() => {setLoginMode('google');}} className={`px-5 py-2 rounded-full ${loginMode === 'google' ? 'bg-orange-500 text-white' : 'border border-orange-500 text-orange-500'} transition`}>Google</button>
-                            <button onClick={() => {setLoginMode('recruiter');}} className={`px-5 py-2 rounded-full ${loginMode === 'recruiter' ? 'bg-orange-500 text-white' : 'border border-orange-500 text-orange-500'} transition`}>Recruiter</button>
-                        </>
-                    ) : (
-                        <button onClick={() => setShowLoginSelection(true)} className={`px-5 py-2 rounded-full bg-orange-500 text-white transition`}>Login</button>
-                    )}
+                    <input type="text" placeholder="Enter your name" onChange={e => setLoginUsername(e.target.value)} className="px-4 py-2 rounded-full border border-slate-700 bg-slate-900"/>
+                    <button onClick={handleCustomLogin} className={`px-5 py-2 rounded-full bg-orange-500 text-white transition`}>Login</button>
                 </div>
             )}
             <button onClick={() => setView('history')} className={`px-5 py-2 rounded-full border border-orange-500 text-orange-500 hover:bg-orange-600 hover:text-white transition`}>History</button>
@@ -769,26 +722,12 @@ export default function App() {
               AI-powered resume screening, ranking, and insights designed to help recruiting teams scale faster. Stop reading hundreds of resumes and start interviewing the best candidates.
             </p>
             <button 
-              onClick={
-                  recruiter ? () => setView('ats') : 
-                  (showLoginSelection && loginMode ? (loginMode === 'google' ? handleGoogleLogin : handleCustomLogin) : () => setShowLoginSelection(true))
-              }
+              onClick={recruiter ? () => setView('ats') : handleCustomLogin}
               className="px-8 py-4 bg-orange-600 rounded-full font-bold text-lg hover:bg-orange-700 transition"
             >
-              {recruiter ? 'Enter ATS' : (showLoginSelection && loginMode ? (loginMode === 'google' ? 'Google Login' : 'Login') : 'Login')}                
+              {recruiter ? 'Enter ATS' : 'Login'}                
             </button>
-            {showLoginSelection && !loginMode && (
-                <div className="flex gap-2 justify-center mt-4">
-                    <button onClick={() => setLoginMode('google')} className="px-5 py-2 rounded-full border border-orange-500 text-orange-500">Google</button>
-                    <button onClick={() => setLoginMode('recruiter')} className="px-5 py-2 rounded-full border border-orange-500 text-orange-500">Recruiter</button>
-                </div>
-            )}
-            {loginMode === 'recruiter' && !recruiter && (
-                <div className="flex flex-col gap-2 mt-4 max-w-sm mx-auto">
-                    <input type="text" placeholder="Username" onChange={e => setLoginUsername(e.target.value)} className="px-4 py-2 rounded-full border border-slate-700 bg-slate-900"/>
-                    <input type="password" placeholder="Password" onChange={e => setLoginPassword(e.target.value)} className="px-4 py-2 rounded-full border border-slate-700 bg-slate-900"/>
-                </div>
-            )}
+
           </section>
 
           {/* Features */}
@@ -823,7 +762,7 @@ export default function App() {
           <section className="py-24 text-center space-y-6">
             <h2 className="text-4xl font-bold">Ready to modernize your recruiting?</h2>
             <button 
-              onClick={recruiter ? () => setView('ats') : handleGoogleLogin}
+              onClick={recruiter ? () => setView('ats') : handleCustomLogin}
               className={`px-8 py-4 ${isDark ? 'bg-white text-slate-950 hover:bg-slate-200' : 'bg-slate-950 text-white hover:bg-slate-800'} rounded-full font-bold text-lg transition`}
             >
               Launch ATS Engine
