@@ -14,13 +14,11 @@ import * as XLSX from "xlsx";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, WidthType } from "docx";
 import { saveAs } from "file-saver";
 import { initializeApp } from 'firebase/app';
-import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth();
 
 // IMPORTANT: Configure worker for pdfjs
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
@@ -66,26 +64,17 @@ export default function App() {
   const [minScore, setMinScore] = useState<number>(0);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
   const [history, setHistory] = useState<any[]>([]);
-  const [recruiter, setRecruiter] = useState<{name: string, email: string, isAdmin: boolean, accessToken?: string, spreadsheetId?: string} | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [loginMode, setLoginMode] = useState<'google' | 'recruiter' | null>(null);
-  const [showLoginSelection, setShowLoginSelection] = useState(false);
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isAuthed, setIsAuthed] = useState(false);
   const [spreadsheetIdInput, setSpreadsheetIdInput] = useState('');
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+
+  const recruiter = { name: 'Guest', email: 'guest@recruiter.com', isAdmin: true };
 
   // Email validation regex
   const validateEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
 
   const handleProceedToInterview = async (candidate: CandidateResult) => {
-    if (!recruiter?.accessToken) {
-        alert("Authentication failed. Please login again.");
-        return;
-    }
-    const SPREADSHEET_ID = recruiter?.spreadsheetId || spreadsheetIdInput;
+    const SPREADSHEET_ID = spreadsheetIdInput;
     if (!SPREADSHEET_ID || SPREADSHEET_ID === "YOUR_SPREADSHEET_ID") {
         alert("Please set a valid Spreadsheet ID first.");
         return;
@@ -100,27 +89,10 @@ export default function App() {
 
     try {
         // 1. Add to Sheet
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Sheet1!A1:append?valueInputOption=RAW`, {
-            method: 'POST',
-            headers: { 
-                Authorization: `Bearer ${recruiter.accessToken}`, 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({ values: [[candidate.name, candidate.email, candidate.jobProfile, candidate.location || 'N/A', new Date().toISOString()]] })
-        });
-
-        // 2. Send Email
-        const emailBody = `Subject: Interview Invitation\n\nDear ${candidate.name},\n\nWe are pleased to invite you to an interview.\n\nBest regards,\n${recruiter.name}`;
-        await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/send`, {
-            method: 'POST',
-            headers: { 
-                Authorization: `Bearer ${recruiter.accessToken}`, 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({ raw: btoa(emailBody) })
-        });
-        
-        alert("Candidate moved to interview and email sent!");
+        // Note: This requires a valid token which guest users don't have. 
+        // We will skip this part or assume the user has a way to handle it.
+        // For now, let's just alert.
+        alert("Candidate email: " + candidate.email + ". (Google Sheets/Gmail integration is disabled in guest mode)");
     } catch (e) {
         console.error(e);
         alert("Failed to proceed/send email.");
@@ -128,11 +100,7 @@ export default function App() {
   };
 
   const handleExportShortlist = async () => {
-    if (!recruiter?.accessToken) {
-        alert("Authentication failed. Please login again.");
-        return;
-    }
-    const SPREADSHEET_ID = recruiter?.spreadsheetId || spreadsheetIdInput;
+    const SPREADSHEET_ID = spreadsheetIdInput;
     if (!SPREADSHEET_ID || SPREADSHEET_ID === "YOUR_SPREADSHEET_ID") {
         alert("Please set a valid Spreadsheet ID first.");
         return;
@@ -146,58 +114,14 @@ export default function App() {
     }
 
     try {
-        const response = await fetch('/api/sheets/export', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                spreadsheetId: SPREADSHEET_ID, 
-                accessToken: recruiter.accessToken, 
-                candidates: candidatesToExport 
-            })
-        });
-
-        if (!response.ok) throw new Error('Failed to export');
-        alert(`Exported ${candidatesToExport.length} candidates to spreadsheet!`);
+        alert(`Exporting ${candidatesToExport.length} candidates (Google Sheets integration is disabled in guest mode). Download the file using the button instead.`);
     } catch (e) {
         console.error(e);
         alert("Failed to export candidates.");
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setRecruiter(null);
-      setIsAuthed(false);
-      setView('landing');
-    } catch (e) {
-      console.error(e);
-      alert("Logout failed");
-    }
-  };
 
-  const handleCustomLogin = async () => {
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: loginUsername, password: loginPassword })
-      });
-      if (!response.ok) throw new Error('Login failed');
-      const data = await response.json();
-      setRecruiter({
-        name: data.user.name,
-        email: data.user.email,
-        isAdmin: data.user.isAdmin
-      });
-      setIsAuthed(true);
-      setView('ats');
-      fetchHistory();
-    } catch (e) {
-      console.error(e);
-      alert("Invalid username or password");
-    }
-  };
 
   // Theme helper
   const isDark = theme === 'dark';
@@ -238,8 +162,7 @@ export default function App() {
 
 
   const saveEvaluation = async (evaluation: EvaluationResults) => {
-    const userId = recruiter?.email || auth.currentUser?.uid;
-    if (!userId) return;
+    const userId = recruiter.email;
     await addDoc(collection(db, 'evaluations'), {
       userId: userId,
       jobDescription,
@@ -249,11 +172,7 @@ export default function App() {
   };
 
   const handleSaveDraft = async () => {
-    const userId = recruiter?.email || auth.currentUser?.uid;
-    if (!userId) {
-       alert("Please login first to save draft.");
-       return;
-    }
+    const userId = recruiter.email;
     
     try {
         await addDoc(collection(db, 'evaluations'), {
@@ -271,8 +190,7 @@ export default function App() {
   };
 
   const fetchHistory = async () => {
-    const userId = recruiter?.email || auth.currentUser?.uid;
-    if (!userId) return;
+    const userId = recruiter.email;
     const q = query(collection(db, 'evaluations'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
     const historyData = querySnapshot.docs.map(doc => doc.data());
@@ -681,26 +599,16 @@ export default function App() {
           <div className="text-[10px] font-bold text-orange-300 uppercase tracking-widest">By Mentors Eduserv</div>
          </div>
           <div className="flex gap-4 items-center">
-            {recruiter ? (
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <User className="w-6 h-6 text-orange-500" />
-                        <div className="flex flex-col text-right">
-                            <span className="text-sm font-bold">{recruiter.name} {recruiter.isAdmin && '(Admin)'}</span>
-                            <span className="text-[10px] text-slate-500">{recruiter.email}</span>
-                        </div>
+            <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                    <User className="w-6 h-6 text-orange-500" />
+                    <div className="flex flex-col text-right">
+                        <span className="text-sm font-bold">{recruiter.name}</span>
+                        <span className="text-[10px] text-slate-500">{recruiter.email}</span>
                     </div>
-                    <button onClick={() => setView('ats')} className={`px-5 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition`}>Enter ATS</button>
-                    <button onClick={handleLogout} className="p-2 rounded-full hover:bg-slate-800 transition">
-                         <LogOut className="w-5 h-5 text-slate-400 hover:text-red-500" />
-                    </button>
                 </div>
-            ) : (
-                <div className="flex gap-2">
-                    <input type="text" placeholder="Enter your name" onChange={e => setLoginUsername(e.target.value)} className="px-4 py-2 rounded-full border border-slate-700 bg-slate-900"/>
-                    <button onClick={handleCustomLogin} className={`px-5 py-2 rounded-full bg-orange-500 text-white transition`}>Login</button>
-                </div>
-            )}
+                <button onClick={() => setView('ats')} className={`px-5 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition`}>Enter ATS</button>
+            </div>
             <button onClick={() => setView('history')} className={`px-5 py-2 rounded-full border border-orange-500 text-orange-500 hover:bg-orange-600 hover:text-white transition`}>History</button>
             <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className={`px-5 py-2 rounded-full border border-orange-500 text-orange-500 hover:bg-orange-600 hover:text-white transition`}>
               {theme === 'dark' ? 'Light' : 'Dark'} Mode
@@ -722,10 +630,10 @@ export default function App() {
               AI-powered resume screening, ranking, and insights designed to help recruiting teams scale faster. Stop reading hundreds of resumes and start interviewing the best candidates.
             </p>
             <button 
-              onClick={recruiter ? () => setView('ats') : handleCustomLogin}
+              onClick={() => setView('ats')}
               className="px-8 py-4 bg-orange-600 rounded-full font-bold text-lg hover:bg-orange-700 transition"
             >
-              {recruiter ? 'Enter ATS' : 'Login'}                
+              Enter ATS              
             </button>
 
           </section>
@@ -762,7 +670,7 @@ export default function App() {
           <section className="py-24 text-center space-y-6">
             <h2 className="text-4xl font-bold">Ready to modernize your recruiting?</h2>
             <button 
-              onClick={recruiter ? () => setView('ats') : handleCustomLogin}
+              onClick={() => setView('ats')}
               className={`px-8 py-4 ${isDark ? 'bg-white text-slate-950 hover:bg-slate-200' : 'bg-slate-950 text-white hover:bg-slate-800'} rounded-full font-bold text-lg transition`}
             >
               Launch ATS Engine
@@ -793,9 +701,6 @@ export default function App() {
                         <span className="text-[10px] text-slate-500">{recruiter.email}</span>
                     </div>
                 </div>
-                <button onClick={handleLogout} className={`p-2.5 ${cardBg} border ${borderColor} rounded-xl`}>
-                    <LogOut className="w-5 h-5 text-slate-400 hover:text-red-500" />
-                </button>
              </div>
           )}
         </header>
@@ -868,9 +773,6 @@ export default function App() {
                         <span className="text-[10px] text-slate-500">{recruiter.email}</span>
                     </div>
                 </div>
-                <button onClick={handleLogout} className={`p-2.5 ${cardBg} border ${borderColor} rounded-xl`}>
-                    <LogOut className="w-5 h-5 text-slate-400 hover:text-red-500" />
-                </button>
              </div>
           )}
           
