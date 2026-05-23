@@ -138,10 +138,30 @@ export default function App() {
 
   // New expanded navigation
   
+  // Background component
+  const BackgroundEffects = () => (
+      <>
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={i}
+            className={`absolute rounded-full -z-10 ${isDark ? 'bg-orange-500 opacity-20' : 'bg-indigo-300 opacity-30'} blur-3xl`}
+            animate={{
+              x: [Math.random() * 1200 - 600, Math.random() * 1200 - 600],
+              y: [Math.random() * 1000 - 500, Math.random() * 1000 - 500],
+              scale: [1, 1.5, 1],
+            }}
+            transition={{ duration: 15 + i * 2, repeat: Infinity, ease: "linear" }}
+            style={{ width: `${300 + i * 100}px`, height: `${300 + i * 100}px` }}
+          />
+        ))}
+      </>
+  );
+
   // Sidebar layout for non-landing views
   const Layout = ({ children }: { children: React.ReactNode }) => (
-    <div className={`min-h-screen ${bg} ${text} flex font-sans`}>
-      <aside className={`w-64 border-r ${borderColor} p-6 flex flex-col gap-8`}>
+    <div className={`min-h-screen ${bg} ${text} flex font-sans relative overflow-hidden`}>
+      <BackgroundEffects />
+      <aside className={`w-64 border-r ${borderColor} p-6 flex flex-col gap-8 z-10 ${cardBg}`}>
          <div className="flex flex-col">
             <div className="text-xl font-black">NextGen<span className="text-orange-500">ATS</span></div>
             <div className="text-[10px] font-bold text-orange-300 uppercase tracking-widest">By Mentors Eduserv</div>
@@ -154,7 +174,7 @@ export default function App() {
             ))}
          </nav>
       </aside>
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-8 overflow-y-auto z-10">
         {children}
       </main>
     </div>
@@ -582,7 +602,7 @@ export default function App() {
         {[...Array(6)].map((_, i) => (
           <motion.div
             key={i}
-            className={`absolute rounded-full ${isDark ? 'bg-orange-500 opacity-10' : 'bg-indigo-300 opacity-20'} blur-3xl`}
+            className={`absolute rounded-full ${isDark ? 'bg-orange-500 opacity-30' : 'bg-indigo-300 opacity-40'} blur-3xl`}
             animate={{
               x: [Math.random() * 1200 - 600, Math.random() * 1200 - 600],
               y: [Math.random() * 1000 - 500, Math.random() * 1000 - 500],
@@ -686,26 +706,25 @@ export default function App() {
     const totalResumes = history.reduce((acc, h) => acc + (h.candidates?.length || 0), 0);
 
     return (
-      <div className={`min-h-screen ${bg} p-8 font-sans ${text}`}>
-        <header className={`mb-8 border-b ${borderColor} pb-6 flex items-center justify-between`}>
+      <div className={`min-h-screen ${bg} p-8 font-sans ${text} relative overflow-hidden`}>
+        <BackgroundEffects />
+        <header className={`mb-8 border-b ${borderColor} pb-6 flex items-center justify-between z-10 relative`}>
           <div className="flex items-center gap-4">
             <button onClick={() => setView('landing')} className={`${textColorMuted} hover:text-orange-500 transition-colors`}>&larr; Back to Landing</button>
             <h1 className="text-3xl font-bold">Activity Dashboard</h1>
           </div>
-          {recruiter && (
-             <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                    <User className="w-6 h-6 text-orange-500" />
-                    <div className="flex flex-col text-right">
-                        <span className="text-sm font-bold">{recruiter.name}</span>
-                        <span className="text-[10px] text-slate-500">{recruiter.email}</span>
-                    </div>
-                </div>
-             </div>
-          )}
+          <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                  <User className="w-6 h-6 text-orange-500" />
+                  <div className="flex flex-col text-right">
+                      <span className="text-sm font-bold">{recruiter.name}</span>
+                      <span className="text-[10px] text-slate-500">{recruiter.email}</span>
+                  </div>
+              </div>
+          </div>
         </header>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-2 gap-4 mb-8 z-10 relative">
             <div className={`${cardBg} border ${borderColor} p-6 rounded-2xl`}>
                 <div className={`${textColorMuted} text-xs font-bold uppercase`}>Total Evaluations</div>
                 <div className="text-4xl font-black mt-2">{totalEvaluations}</div>
@@ -716,7 +735,7 @@ export default function App() {
             </div>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-4 z-10 relative">
           {history.length === 0 && <p className={textColorMuted}>No evaluations found.</p>}
           {history.map((h, i) => (
              <div key={i} className={`${cardBg} border ${borderColor} p-6 rounded-2xl`}>
@@ -731,8 +750,9 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen ${bg} p-8 font-sans ${text}`}>
-      <header className={`mb-8 border-b ${borderColor} pb-6 flex items-center justify-between`}>
+    <div className={`min-h-screen ${bg} p-8 font-sans ${text} relative overflow-hidden`}>
+      <BackgroundEffects />
+      <header className={`mb-8 border-b ${borderColor} pb-6 flex items-center justify-between z-10 relative`}>
         <div className='flex items-center gap-4'>
             <button onClick={() => setView('landing')} className={`${textColorMuted} hover:text-indigo-600`}>&larr; Back</button>
             <div>
@@ -823,7 +843,7 @@ export default function App() {
       </header>
 
         {mode === 'ai' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
              <div className={`${cardBg} p-6 rounded-2xl shadow-sm border ${borderColor}`}>
              <label className="block text-sm font-bold mb-3">Job Role</label>
              <input
@@ -874,7 +894,7 @@ export default function App() {
         )}
         
         {mode === 'simple' && (
-        <div className="grid grid-cols-1 gap-6 mb-8">
+        <div className="relative z-10 grid grid-cols-1 gap-6 mb-8">
             <div className={`${cardBg} p-6 rounded-2xl shadow-sm border ${borderColor}`}>
                 <label className="block text-sm font-bold mb-3">Upload Resumes (Simple)</label>
                 <div 
@@ -909,7 +929,7 @@ export default function App() {
         )}
         
         {mode === 'import' && (
-        <div className="grid grid-cols-1 gap-6 mb-8">
+        <div className="relative z-10 grid grid-cols-1 gap-6 mb-8">
             <div className={`${cardBg} p-6 rounded-2xl shadow-sm border ${borderColor}`}>
                 <label className="block text-sm font-bold mb-3">Upload Candidates Excel File</label>
                 <div 
