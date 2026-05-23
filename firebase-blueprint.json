@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "Evaluation": {
+      "title": "Evaluation",
+      "description": "An ATS evaluation record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "jobDescription": { "type": "string" },
+        "candidates": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "jobDescription", "candidates", "createdAt"]
+    }
+  },
+  "firestore": {
+    "evaluations": {
+      "schema": "Evaluation",
+      "description": "Stores past ATS evaluations."
+    }
+  }
+}

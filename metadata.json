@@ -1,0 +1,6 @@
+{
+  "name": "ATS Resume Screener",
+  "description": "An ATS software program to shortlist candidate resumes based on skills, profiles, and job requirements.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
